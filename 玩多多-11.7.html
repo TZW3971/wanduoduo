@@ -5744,26 +5744,34 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
 </script>
 <script>
 /* ===== js/games/melon.js ===== */
-/* 合成大西瓜 · 果冻物理版 */
+/* 合成大西瓜 · 正版复刻版（水果剖面 + 木板背景 + 炸裂特效） */
 (function () {
   'use strict';
-  var rr = P.rr, shade = P.shade, clamp = P.clamp;
+  var clamp = P.clamp;
 
+  /* 11 级：葡萄→樱桃→橘子→柠檬→猕猴桃→西红柿→桃子→菠萝→椰子→半西瓜→大西瓜 */
   var FRUITS = [
-    { r: 13, c: '#e0544c' }, { r: 17, c: '#a86ad4' }, { r: 21, c: '#f2a03c' },
-    { r: 25, c: '#f2cd45' }, { r: 30, c: '#8ec95a' }, { r: 35, c: '#e8564a' },
-    { r: 41, c: '#f39bab' }, { r: 47, c: '#edbe45' }, { r: 54, c: '#a97c50' },
-    { r: 62, c: '#7ec07e' }, { r: 72, c: '#4da85e' }
+    { r: 13, skin: '#8a55c9', flesh: '#b48ae2', deep: '#6a3ba0' },
+    { r: 17, skin: '#c93a35', flesh: '#ee655c', deep: '#9e2b27' },
+    { r: 21, skin: '#e8901f', flesh: '#f7ae4e', deep: '#b86c12' },
+    { r: 25, skin: '#e3c428', flesh: '#f7e36e', deep: '#b09618' },
+    { r: 30, skin: '#8a6a3f', flesh: '#a8d06a', deep: '#664d2a' },
+    { r: 35, skin: '#d8433c', flesh: '#ef7263', deep: '#a82e28' },
+    { r: 41, skin: '#f2a35c', flesh: '#fbc98a', deep: '#c77c34' },
+    { r: 47, skin: '#dd9c2f', flesh: '#f5d369', deep: '#a87518' },
+    { r: 54, skin: '#8a6238', flesh: '#f5efe0', deep: '#634424' },
+    { r: 62, skin: '#3f9d4a', flesh: '#ee5a64', deep: '#2c7235' },
+    { r: 72, skin: '#2f8f3f', flesh: '#ee4f5c', deep: '#1f6a2b' }
   ];
   var MAX = FRUITS.length - 1;
-  var REST = 0.42;            // 弹性系数
-  var IMPACT_V = 1.1;         // 触发挤压的速度阈值
+  var REST = 0.42;
+  var IMPACT_V = 1.1;
 
   var g = {
     id: 'melon',
-    strip: '#f7f1e3', name: '合成大西瓜', desc: '果冻物理 · 同类相合',
+    strip: '#b98d5f', name: '合成大西瓜', desc: '正版复刻 · 剖面水果 · 炸裂特效',
     tag: '经典', scoreLabel: '得分',
-    accent: ['#ff9a62', '#e2453f'],
+    accent: ['#e8901f', '#c93a35'],
     icon: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="14" r="8" fill="#fff" opacity=".28"/><circle cx="12" cy="14" r="5.4" fill="#fff"/><path d="M12 6c1.7 0 2.9-1.2 2.9-2.9C13.2 3.1 12 4.3 12 6z" fill="#fff" opacity=".85"/></svg>',
     hint: '按住屏幕拖动瞄准，松手落下 · 相同果实碰撞合成更大的',
 
@@ -5773,6 +5781,7 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
       this.cd = 0; this.acc = 0; this.aiming = false;
       this.aim = P.W / 2;
       this.TOP = 74;
+      this.shk = 0;                 /* 屏幕震动幅度 */
       this.cur = Math.floor(Math.random() * 5);
       this.next = Math.floor(Math.random() * 5);
       P.setScore(0, '得分');
@@ -5805,21 +5814,39 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
     },
 
     /* ---- 特效 ---- */
-    splash: function (x, y, col, power) {
-      var n = 8 + Math.round(power * 6);
+    /* 炸裂：果汁粒子 + 白色闪光圈 + 冲击波纹 + 屏幕震动 */
+    burst: function (x, y, fr, power) {
+      var col = fr.flesh, deep = fr.deep;
+      var n = 16 + Math.round(power * 12);
       for (var i = 0; i < n; i++) {
-        var a = Math.random() * Math.PI * 2, sp = (1.4 + Math.random() * 2.6) * (0.7 + power);
+        var a = Math.random() * Math.PI * 2, sp = (2 + Math.random() * 3.6) * (0.6 + power);
         this.juice.push({
           x: x, y: y,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.6,
-          r: 2 + Math.random() * 3.6, col: col, t: 0
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+          r: 2 + Math.random() * 4.5, col: Math.random() < 0.7 ? col : deep, t: 0
         });
       }
-      if (this.juice.length > 140) this.juice.splice(0, this.juice.length - 140);
+      /* 大果块碎屑 */
+      for (i = 0; i < 5; i++) {
+        var a2 = Math.random() * Math.PI * 2, sp2 = (1.2 + Math.random() * 1.8) * (0.6 + power);
+        this.juice.push({
+          x: x, y: y, vx: Math.cos(a2) * sp2, vy: Math.sin(a2) * sp2 - 2.4,
+          r: 5 + Math.random() * 4, col: col, t: -80, big: true
+        });
+      }
+      if (this.juice.length > 160) this.juice.splice(0, this.juice.length - 160);
+      /* 闪光圈 */
+      this.fx.push({ x: x, y: y, t: 0, kind: 'flash', col: 'rgba(255,255,255,.9)', R: 8 + power * 14 });
+      /* 冲击波 */
+      this.fx.push({ x: x, y: y, t: 0, kind: 'wave', col: deep, R: 10 + power * 20 });
+      if (this.fx.length > 30) this.fx.splice(0, this.fx.length - 30);
+      /* 屏幕震动 */
+      var s = 2.5 + power * 6;
+      if (s > this.shk) this.shk = s;
     },
     ripple: function (x, y, col) {
-      this.fx.push({ x: x, y: y, t: 0, col: col || 'rgba(120,150,200,.5)' });
-      if (this.fx.length > 24) this.fx.shift();
+      this.fx.push({ x: x, y: y, t: 0, kind: 'wave', col: col || 'rgba(120,150,200,.5)', R: 6 });
+      if (this.fx.length > 30) this.fx.shift();
     },
     squash: function (b, v, vertical) {
       var s = Math.min(0.30, v * 0.055);
@@ -5831,16 +5858,19 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
       if (this.cd > 0) this.cd -= dt;
       var i;
       for (i = 0; i < this.pops.length; i++) this.pops[i].t += dt;
-      this.pops = this.pops.filter(function (p) { return p.t < 720; });
+      this.pops = this.pops.filter(function (p) { return p.t < 760; });
 
       for (i = 0; i < this.juice.length; i++) {
         var j = this.juice[i];
         j.t += dt;
         j.x += j.vx; j.y += j.vy; j.vy += 0.16; j.vx *= 0.99;
       }
-      this.juice = this.juice.filter(function (p) { return p.t < 620; });
+      this.juice = this.juice.filter(function (p) { return p.t < 680; });
       for (i = 0; i < this.fx.length; i++) this.fx[i].t += dt;
       this.fx = this.fx.filter(function (p) { return p.t < 460; });
+
+      this.shk *= Math.pow(0.92, dt / 16.7);
+      if (this.shk < 0.15) this.shk = 0;
 
       this.acc += dt;
       var n = 0;
@@ -5861,10 +5891,8 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
     step: function () {
       var f = this.fruits, W = P.W, H = P.H;
       if (!f.length) return;
-      // 先合并：深度融合的同类果实直接合成，避免被分离算法弹飞
       this.merge();
       var SUB = 2, gg = 0.30, i, j;
-      // 果冻回弹：sq 以弹簧方式衰减
       for (i = 0; i < f.length; i++) {
         var q = f[i];
         q.sq *= 0.86;
@@ -5881,23 +5909,19 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
         for (var it = 0; it < 5; it++) {
           for (i = 0; i < f.length; i++) {
             var b = f[i];
-            // 边界：弹性反弹 + 挤压特效
             if (b.x - b.r < 0) {
               var vx1 = b.x - b.px;
               b.x = b.r; b.px = b.x + vx1 * REST;
-              if (Math.abs(vx1) > IMPACT_V && it === 0) { this.squash(b, vx1 * 2, false); this.ripple(4, b.y); }
+              if (Math.abs(vx1) > IMPACT_V && it === 0) this.squash(b, vx1 * 2, false);
             }
             if (b.x + b.r > W) {
               var vx2 = b.x - b.px;
               b.x = W - b.r; b.px = b.x + vx2 * REST;
-              if (Math.abs(vx2) > IMPACT_V && it === 0) { this.squash(b, vx2 * 2, false); this.ripple(W - 4, b.y); }
+              if (Math.abs(vx2) > IMPACT_V && it === 0) this.squash(b, vx2 * 2, false);
             }
             if (b.y + b.r > H) {
               var vy1 = b.y - b.py;
-              if (vy1 > IMPACT_V && it === 0) {
-                this.squash(b, vy1 * 1.6, true);
-                if (vy1 > 2.4) this.ripple(b.x, H - 4);
-              }
+              if (vy1 > IMPACT_V && it === 0) this.squash(b, vy1 * 1.6, true);
               b.y = H - b.r;
               b.py = vy1 > 0.35 ? b.y + vy1 * REST : b.y;
             }
@@ -5913,12 +5937,10 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
               var d = Math.sqrt(d2), nx = dx / d, ny = dy / d;
               var pen = (min - d) * 0.82;
               var ma = A.r * A.r, mb = B.r * B.r, tm = ma + mb;
-              // 位置修正 + 阻尼：既分离又不产生爆炸速度
               var cax = nx * pen * (mb / tm), cay = ny * pen * (mb / tm);
               var cbx = nx * pen * (ma / tm), cby = ny * pen * (ma / tm);
               A.x -= cax; A.y -= cay; A.px -= cax * 0.55; A.py -= cay * 0.55;
               B.x += cbx; B.y += cby; B.px += cbx * 0.55; B.py += cby * 0.55;
-              // 竖直叠罗汉时侧向滑开，避免堆成一根柱子
               if (it < 2 && Math.abs(ny) > 0.9 && Math.abs(dx) < min * 0.28) {
                 var up = dy < 0 ? B : A;
                 var low = up === A ? B : A;
@@ -5929,7 +5951,6 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
                 low.x -= dir * push * 0.18;
                 low.px -= dir * push * 0.1;
               }
-              // 碰撞挤压（不弹开，保留堆叠稳定）
               if (it === 0 && d < min * 0.86) {
                 var rvx = (B.x - B.px) - (A.x - A.px), rvy = (B.y - B.py) - (A.y - A.py);
                 var rv = Math.abs(rvx) + Math.abs(rvy);
@@ -5954,12 +5975,13 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
           if (Math.sqrt(dx * dx + dy * dy) > (A.r + B.r) * 1.02) continue;
           A.dead = true; B.dead = true;
           var mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
-          var col = FRUITS[A.lvl].c;
-          this.splash(mx, my, col, Math.min(1, A.r / 30));
+          var fr = FRUITS[A.lvl];
+          var power = Math.min(1, 0.3 + A.r / 60);
+          this.burst(mx, my, fr, power);
           if (A.lvl >= MAX) {
             this.score += 200;
-            this.pops.push({ x: mx, y: my, t: 0, text: '+200' });
-            P.haptic(24);
+            this.pops.push({ x: mx, y: my, t: 0, text: '+200', big: true });
+            P.haptic([30, 40, 30]);
             P.sfx.clear(4);
           } else {
             var nl = A.lvl + 1, nr = this.rOf(nl);
@@ -5969,10 +5991,9 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
               sd: (Math.random() < 0.5 ? -1 : 1)
             };
             f.push(nf);
-            this.ripple(nf.x, nf.y + nr * 0.5, col);
             this.score += (nl + 1) * 2;
-            this.pops.push({ x: mx, y: my, t: 0, text: '+' + ((nl + 1) * 2) });
-            P.haptic(12);
+            this.pops.push({ x: mx, y: my, t: 0, text: '+' + ((nl + 1) * 2), big: nl >= 7 });
+            P.haptic(16 + nl * 2);
             P.sfx.merge();
           }
           P.setScore(this.score, '得分');
@@ -5984,13 +6005,12 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
     },
 
     end: function () {
-      /* 水果堆超过警戒线 → 游戏结束（失败机制恢复） */
       if (this.over) return;
       this.over = true;
       var k;
       for (k = 0; k < this.fruits.length; k++) {
         var f = this.fruits[k];
-        if (f.y - f.r < this.TOP + 6) this.splash(f.x, f.y, f.col, 1.4);
+        if (f.y - f.r < this.TOP + 6) this.burst(f.x, f.y, FRUITS[f.lvl], 1.4);
       }
       P.haptic([20, 40, 20]);
       P.sfx.lose();
@@ -6003,41 +6023,74 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
       });
     },
 
+    /* ---- 背景：木板 ---- */
+    drawBg: function (c, W, H, TOP) {
+      var grd = c.createLinearGradient(0, 0, 0, H);
+      grd.addColorStop(0, '#c49a68');
+      grd.addColorStop(1, '#b08a58');
+      c.fillStyle = grd;
+      c.fillRect(0, 0, W, H);
+      /* 竖板缝 */
+      var pw = Math.max(56, W / 6);
+      c.strokeStyle = 'rgba(96,66,34,.34)';
+      c.lineWidth = 2;
+      for (var x = pw; x < W; x += pw) {
+        c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke();
+      }
+      /* 板内木纹 */
+      c.strokeStyle = 'rgba(120,88,48,.18)';
+      c.lineWidth = 1.2;
+      for (var i = 0; i < W; i += 46) {
+        var gx = i + 12 + (i % 3) * 7;
+        c.beginPath();
+        c.moveTo(gx, 30 + (i % 5) * 60);
+        c.quadraticCurveTo(gx + 9, 90 + (i % 4) * 70, gx - 4, 160 + (i % 6) * 55);
+        c.stroke();
+      }
+      /* 顶部淡出衔接 HUD */
+      var tg = c.createLinearGradient(0, 0, 0, TOP);
+      tg.addColorStop(0, 'rgba(120,82,40,.30)');
+      tg.addColorStop(1, 'rgba(120,82,40,0)');
+      c.fillStyle = tg;
+      c.fillRect(0, 0, W, TOP);
+    },
+
     draw: function (c) {
       var W = P.W, H = P.H, TOP = this.TOP, i;
       c.clearRect(0, 0, W, H);
-      /* 经典版：米黄纯色底 */
-      c.fillStyle = '#f7f1e3'; c.fillRect(0, 0, W, H);
-
-      c.fillStyle = 'rgba(224,84,76,.06)';
-      c.fillRect(0, 0, W, TOP);
-
       c.save();
-      c.strokeStyle = 'rgba(150,120,70,.4)';
+      if (this.shk > 0) c.translate((Math.random() - 0.5) * this.shk, (Math.random() - 0.5) * this.shk);
+
+      this.drawBg(c, W, H, TOP);
+
+      /* 危险红线 */
+      c.save();
+      c.strokeStyle = 'rgba(255,244,224,.55)';
       c.lineWidth = 1.5; c.setLineDash([7, 7]);
       c.beginPath(); c.moveTo(10, TOP); c.lineTo(W - 10, TOP); c.stroke();
       c.restore();
 
-      // 落点虚线
+      /* 落点虚线 */
       if (!this.over && this.cd <= 0) {
         c.save();
-        c.strokeStyle = 'rgba(90,124,250,.26)';
+        c.strokeStyle = 'rgba(255,255,255,.30)';
         c.lineWidth = 1.5; c.setLineDash([4, 8]);
         c.beginPath(); c.moveTo(this.aim, TOP + 6); c.lineTo(this.aim, H - 10); c.stroke();
         c.restore();
       }
 
-      // 果汁粒子
+      /* 果汁粒子 */
       for (i = 0; i < this.juice.length; i++) {
-        var jp = this.juice[i], jt = jp.t / 620;
-        c.globalAlpha = (1 - jt) * 0.85;
+        var jp = this.juice[i];
+        var jt = Math.max(0, jp.t) / 680;
+        c.globalAlpha = (1 - jt) * 0.9;
         c.beginPath();
-        c.arc(jp.x, jp.y, jp.r * (1 - jt * 0.5), 0, Math.PI * 2);
+        c.arc(jp.x, jp.y, jp.r * (1 - jt * 0.4), 0, Math.PI * 2);
         c.fillStyle = jp.col; c.fill();
       }
       c.globalAlpha = 1;
 
-      // 果实（带果冻挤压）
+      /* 果实 */
       for (i = 0; i < this.fruits.length; i++) {
         var f = this.fruits[i];
         if (f.sq > 0.004) {
@@ -6045,74 +6098,199 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
           c.translate(f.x, f.y);
           c.rotate(f.sa || 0);
           c.scale(1 + f.sq, 1 - f.sq);
-          this.fruit(c, 0, 0, f.r, f.lvl, false);
+          this.fruit(c, 0, 0, f.r, f.lvl);
           c.restore();
         } else {
-          this.fruit(c, f.x, f.y, f.r, f.lvl, false);
+          this.fruit(c, f.x, f.y, f.r, f.lvl);
         }
       }
 
-      // 冲击波纹
+      /* 特效：闪光圈 / 冲击波 */
       for (i = 0; i < this.fx.length; i++) {
         var fxp = this.fx[i], ft = fxp.t / 460;
         c.save();
-        c.globalAlpha = (1 - ft) * 0.5;
-        c.strokeStyle = fxp.col || 'rgba(120,150,200,.5)';
-        c.lineWidth = 2 * (1 - ft) + 0.5;
-        c.beginPath();
-        c.ellipse(fxp.x, fxp.y, 6 + ft * 30, (6 + ft * 30) * 0.36, 0, 0, Math.PI * 2);
+        if (fxp.kind === 'flash') {
+          c.globalAlpha = (1 - ft) * 0.85;
+          c.fillStyle = fxp.col;
+          c.beginPath();
+          c.arc(fxp.x, fxp.y, fxp.R * (0.4 + ft * 1.1), 0, Math.PI * 2);
+          c.fill();
+        } else {
+          c.globalAlpha = (1 - ft) * 0.6;
+          c.strokeStyle = fxp.col;
+          c.lineWidth = 3 * (1 - ft) + 0.5;
+          c.beginPath();
+          c.arc(fxp.x, fxp.y, fxp.R * (0.5 + ft * 1.6), 0, Math.PI * 2);
+          c.stroke();
+        }
+        c.restore();
+      }
+
+      /* 顶部：下一只水果预览（左上角白盘，如正版） */
+      if (!this.over) {
+        var nr = this.rOf(this.next);
+        var px = 34, py = 30, pr = nr * 0.72;
+        c.save();
+        c.beginPath(); c.arc(px, py, pr + 6, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(255,248,235,.92)';
+        c.fill();
+        c.lineWidth = 2;
+        c.strokeStyle = 'rgba(96,66,34,.35)';
         c.stroke();
         c.restore();
+        this.fruit(c, px, py, pr, this.next);
       }
 
-      if (!this.over) {
-        var r = this.rOf(this.cur);
-        var x = clamp(this.aim, r + 2, W - r - 2);
-        this.fruit(c, x, 36, r, this.cur, true);
-        var nr = this.rOf(this.next);
-        c.save();
-        c.fillStyle = 'rgba(255,255,255,.92)';
-        c.beginPath(); c.arc(34, 30, nr * 0.72 + 6, 0, Math.PI * 2); c.fill();
-        c.restore();
-        this.fruit(c, 34, 30, nr * 0.72, this.next, false);
-      }
-
-      // 得分飘字
+      /* 得分飘字 */
       for (i = 0; i < this.pops.length; i++) {
-        var p = this.pops[i], t = p.t / 720;
+        var p = this.pops[i], t = p.t / 760;
         c.save();
         c.globalAlpha = 1 - t;
-        c.fillStyle = '#ef6a5c';
-        c.font = '700 15px -apple-system,system-ui,sans-serif';
+        c.font = '700 ' + (p.big ? 20 : 15) + 'px -apple-system,system-ui,sans-serif';
         c.textAlign = 'center';
-        c.fillText(p.text, p.x, p.y - 24 - t * 24);
+        c.lineWidth = 3;
+        c.strokeStyle = 'rgba(255,248,235,.85)';
+        c.strokeText(p.text, p.x, p.y - 24 - t * 26);
+        c.fillStyle = '#d8433c';
+        c.fillText(p.text, p.x, p.y - 24 - t * 26);
         c.restore();
       }
+      c.restore();
     },
 
-    fruit: function (c, x, y, r, lvl, held) {
-      var col = FRUITS[lvl].c;
-      /* 经典版：纯色 + 深色描边 + 笑脸 */
-      c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2);
-      c.fillStyle = col; c.fill();
-      c.lineWidth = Math.max(1.6, r * 0.08);
-      c.strokeStyle = shade(col, -.34); c.stroke();
+    /* ---- 正版剖面水果 ---- */
+    fruit: function (c, x, y, r, lvl) {
+      var fr = FRUITS[lvl];
+      c.save();
+      c.translate(x, y);
+      /* 底球：皮肤色径向渐变 */
+      var g1 = c.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.2, 0, 0, r);
+      g1.addColorStop(0, P.shade(fr.skin, 0.18));
+      g1.addColorStop(1, fr.skin);
+      c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2);
+      c.fillStyle = g1; c.fill();
 
+      /* 果肉圆 */
+      var fl = r * 0.80;
+      c.beginPath(); c.arc(0, 0, fl, 0, Math.PI * 2);
+      c.fillStyle = fr.flesh; c.fill();
+
+      /* 各级细节 */
+      c.save();
+      c.beginPath(); c.arc(0, 0, fl, 0, Math.PI * 2); c.clip();
+      if (lvl === 0) {
+        /* 葡萄：果肉上淡紫弧纹 */
+        c.strokeStyle = 'rgba(255,255,255,.30)';
+        c.lineWidth = Math.max(1.5, r * 0.07);
+        c.beginPath(); c.arc(0, 0, fl * 0.62, 0.4, 2.4); c.stroke();
+      } else if (lvl === 1) {
+        /* 樱桃：中心褐色小核 */
+        c.fillStyle = 'rgba(90,40,25,.55)';
+        c.beginPath(); c.arc(0, r * 0.06, r * 0.16, 0, Math.PI * 2); c.fill();
+      } else if (lvl === 2 || lvl === 3) {
+        /* 橘子 / 柠檬：白色果络 + 分瓣线 */
+        c.strokeStyle = 'rgba(255,255,255,.85)';
+        c.lineWidth = Math.max(1.4, r * 0.05);
+        c.beginPath(); c.arc(0, 0, fl * 0.88, 0, Math.PI * 2); c.stroke();
+        var seg = lvl === 2 ? 7 : 8;
+        c.lineWidth = Math.max(1.2, r * 0.045);
+        c.strokeStyle = 'rgba(255,255,255,.70)';
+        for (var s2 = 0; s2 < seg; s2++) {
+          var an = (s2 / seg) * Math.PI * 2 + 0.2;
+          c.beginPath(); c.moveTo(0, 0);
+          c.lineTo(Math.cos(an) * fl * 0.85, Math.sin(an) * fl * 0.85);
+          c.stroke();
+        }
+        c.fillStyle = 'rgba(255,255,255,.85)';
+        c.beginPath(); c.arc(0, 0, r * 0.05 + 1, 0, Math.PI * 2); c.fill();
+      } else if (lvl === 4) {
+        /* 猕猴桃：白色果心 + 黑籽环 */
+        c.fillStyle = 'rgba(250,250,235,.9)';
+        c.beginPath(); c.ellipse(0, 0, r * 0.20, r * 0.16, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(40,30,10,.85)';
+        for (var k1 = 0; k1 < 10; k1++) {
+          var a1 = (k1 / 10) * Math.PI * 2;
+          c.beginPath();
+          c.ellipse(Math.cos(a1) * fl * 0.45, Math.sin(a1) * fl * 0.45, r * 0.045, r * 0.028, a1, 0, Math.PI * 2);
+          c.fill();
+        }
+      } else if (lvl === 5) {
+        /* 西红柿：放射状浅色籽 */
+        for (var k2 = 0; k2 < 8; k2++) {
+          var a2 = (k2 / 8) * Math.PI * 2 + 0.25;
+          c.fillStyle = 'rgba(255,225,180,.75)';
+          c.beginPath();
+          c.ellipse(Math.cos(a2) * fl * 0.52, Math.sin(a2) * fl * 0.52, r * 0.075, r * 0.045, a2, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = 'rgba(255,225,180,.55)';
+          c.beginPath();
+          c.ellipse(Math.cos(a2) * fl * 0.30, Math.sin(a2) * fl * 0.30, r * 0.05, r * 0.032, a2, 0, Math.PI * 2);
+          c.fill();
+        }
+      } else if (lvl === 6) {
+        /* 桃子：中间褐色桃核 */
+        var pg = c.createRadialGradient(0, -r * 0.2, r * 0.1, 0, 0, fl);
+        pg.addColorStop(0, '#fddfb2');
+        pg.addColorStop(1, '#f7bd7e');
+        c.fillStyle = pg;
+        c.fillRect(-fl, -fl, fl * 2, fl * 2);
+        c.fillStyle = 'rgba(96,52,22,.78)';
+        c.beginPath(); c.ellipse(0, r * 0.04, r * 0.17, r * 0.22, 0.3, 0, Math.PI * 2); c.fill();
+      } else if (lvl === 7) {
+        /* 菠萝：菱形格纹 */
+        c.strokeStyle = 'rgba(150,96,26,.55)';
+        c.lineWidth = Math.max(1.4, r * 0.04);
+        var sp = r * 0.30;
+        for (var d1 = -fl * 2; d1 < fl * 2; d1 += sp) {
+          c.beginPath(); c.moveTo(d1, -fl); c.lineTo(d1 + fl * 2, fl); c.stroke();
+          c.beginPath(); c.moveTo(d1 + fl * 2, -fl); c.lineTo(d1, fl); c.stroke();
+        }
+        c.fillStyle = 'rgba(150,96,26,.5)';
+        for (var d2 = -fl + sp / 2; d2 < fl; d2 += sp) {
+          for (var d3 = -fl + sp / 2; d3 < fl; d3 += sp) {
+            if (d2 * d2 + d3 * d3 < fl * fl * 0.9) {
+              c.beginPath(); c.arc(d2 + (d3 % (sp * 2) ? 0 : sp / 2), d3, r * 0.045, 0, Math.PI * 2); c.fill();
+            }
+          }
+        }
+      } else if (lvl === 8) {
+        /* 椰子：白色厚果肉 + 棕壳芯 */
+        c.fillStyle = fr.deep;
+        c.beginPath(); c.arc(0, 0, fl * 0.42, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,255,255,.25)';
+        c.beginPath(); c.arc(0, 0, fl * 0.30, 0, Math.PI * 2); c.fill();
+      } else {
+        /* 半西瓜 / 大西瓜：白皮层 + 红瓤 + 黑籽 */
+        var wg = c.createRadialGradient(0, 0, fl * 0.2, 0, 0, fl);
+        wg.addColorStop(0, lvl === 10 ? '#ee4f5c' : '#ef5f68');
+        wg.addColorStop(1, lvl === 10 ? '#e0404e' : '#ea4f5a');
+        c.fillStyle = wg;
+        c.beginPath(); c.arc(0, 0, fl, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(30,20,10,.8)';
+        var ns = lvl === 10 ? 9 : 7;
+        for (var k3 = 0; k3 < ns; k3++) {
+          var a3 = (k3 / ns) * Math.PI * 2 + (lvl === 10 ? 0.15 : 0.45);
+          var rr3 = fl * (0.42 + (k3 % 2) * 0.14);
+          c.beginPath();
+          c.ellipse(Math.cos(a3) * rr3, Math.sin(a3) * rr3, r * 0.05, r * 0.032, a3 + Math.PI / 2, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+      c.restore();
+
+      /* 果皮边缘描边 */
+      c.beginPath(); c.arc(0, 0, r - 0.8, 0, Math.PI * 2);
+      c.lineWidth = Math.max(1.6, r * 0.07);
+      c.strokeStyle = fr.deep;
+      c.stroke();
+
+      /* 高光 */
       c.beginPath();
-      c.ellipse(x - r * 0.34, y - r * 0.40, r * 0.28, r * 0.18, -0.5, 0, Math.PI * 2);
-      c.fillStyle = 'rgba(255,255,255,.5)';
+      c.ellipse(-r * 0.34, -r * 0.42, r * 0.26, r * 0.15, -0.5, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(255,255,255,.55)';
       c.fill();
 
-      if (r > 13) {
-        c.fillStyle = 'rgba(30,20,10,.62)';
-        var ex = r * 0.30, ey = r * 0.08, es = Math.max(1.5, r * 0.09);
-        c.beginPath(); c.arc(x - ex, y - ey, es, 0, Math.PI * 2); c.fill();
-        c.beginPath(); c.arc(x + ex, y - ey, es, 0, Math.PI * 2); c.fill();
-        c.strokeStyle = 'rgba(30,20,10,.62)';
-        c.lineWidth = Math.max(1.5, r * 0.08);
-        c.lineCap = 'round';
-        c.beginPath(); c.arc(x, y + r * 0.02, r * 0.30, Math.PI * 0.22, Math.PI * 0.78); c.stroke();
-      }
+      c.restore();
     }
   };
 
