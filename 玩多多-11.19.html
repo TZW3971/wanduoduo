@@ -749,9 +749,10 @@ canvas{border-radius:0}
    这类游戏自己在画布顶部画返回键，所以隐藏浮动 HUD 按钮 */
 #play.bleed .stage{padding-top:0;padding-bottom:0}
 #play.nohud .hud{display:none}
-/* 自己画顶部按钮的游戏（大西瓜 / 跳一跳 / 猜成语）：不留 56px 安全条，
-   只让出状态栏，避免顶部出现一条空白 */
-#play.nohud .stage{padding-top:calc(var(--sbh,0px))}
+/* 自己画顶部按钮的游戏（猜成语）：不留 56px 安全条，
+   只让出状态栏，避免顶部出现一条空白；
+   bleed 游戏（阅读书屋 / 大西瓜）画布铺满整屏，游戏内自己用 P.sbTop 让位 */
+#play.nohud:not(.bleed) .stage{padding-top:calc(var(--sbh,0px))}
 
 /* ---------- 小游戏合集（文件夹板块） ---------- */
 #folderSheet{
@@ -1035,6 +1036,13 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
   };
 
   P.haptic = function (v) {
+    /* APK 内优先走原生震动桥（WebView 的 navigator.vibrate 不可靠） */
+    try {
+      if (window.AndroidUI && AndroidUI.vibrate) {
+        AndroidUI.vibrate(typeof v === 'number' ? String(Math.round(v)) : (v && v.join ? v.join(',') : String(v)));
+        return;
+      }
+    } catch (e) { }
     if (navigator.vibrate) { try { navigator.vibrate(v); } catch (e) { } }
   };
 
@@ -4390,7 +4398,7 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
   var g = {
     id: 'melon',
     strip: '#d8a75f', name: '合成大西瓜', desc: '正版复刻 · 剖面水果 · 炸裂特效',
-    tag: '经典', scoreLabel: '得分', noHud: true,
+    tag: '经典', scoreLabel: '得分', noHud: true, bleed: true,   /* 画布铺满整屏（延伸到状态栏下），顶部按钮自己让位 */
     accent: ['#ef8b1e', '#d63a3a'],
     icon: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#58b34a"/><path d="M12 3.5v17M6 4.5c-1.8 4.6-1.8 10.4 0 15M18 4.5c1.8 4.6 1.8 10.4 0 15" stroke="#2e7d32" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>',
     hint: '按住屏幕拖动瞄准，松手落下 · 相同水果碰撞合成更大的',
@@ -4427,16 +4435,16 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
     rOf: function (lv) { return FRUITS[lv].r; },
 
     /* 木牌按钮位置 */
-    btnBack: function () { return { x: 14, y: 12, w: 58, h: 58 }; },
-    btnRe: function () { return { x: P.W - 72, y: 12, w: 58, h: 58 }; },
+    btnBack: function () { return { x: 14, y: 12 + (P.sbTop || 0), w: 58, h: 58 }; },
+    btnRe: function () { return { x: P.W - 72, y: 12 + (P.sbTop || 0), w: 58, h: 58 }; },
     /* 底部按钮栏（从左到右）：皮肤 → 锤子 → 水果雨，等高 46 */
     btnSkin: function () {
-      var w = 98, h = 46;
+      var w = 112, h = 46;
       return { x: 8, y: this.floorY + (P.H - this.floorY - h) / 2, w: w, h: h };
     },
     /* 右下角水果雨按钮 */
     btnRain: function () {
-      var w = 78, h = 46;
+      var w = 96, h = 46;
       return { x: P.W - w - 6, y: this.floorY + (P.H - this.floorY - h) / 2, w: w, h: h };
     },
     btnHammer: function () {
@@ -5056,7 +5064,7 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
       c.strokeStyle = 'rgba(255,255,255,.62)'; c.lineWidth = 1.2; c.stroke();
       /* 云朵雨滴图标 */
       c.save();
-      c.translate(b.x + 19, cy - 2);
+      c.translate(b.x + 22, cy - 2);
       c.fillStyle = '#ffffff';
       c.beginPath();
       c.arc(-6, 0, 6, 0, Math.PI * 2);
@@ -5074,9 +5082,9 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
       c.restore();
       /* 文案 */
       c.fillStyle = '#2c5a86';
-      c.font = '800 13px "PingFang SC",-apple-system,system-ui,sans-serif';
+      c.font = '800 14px "PingFang SC",-apple-system,system-ui,sans-serif';
       c.textAlign = 'left'; c.textBaseline = 'middle';
-      c.fillText('水果雨', b.x + 36, cy + 1);
+      c.fillText('水果雨', b.x + 40, cy + 1);
       c.textBaseline = 'alphabetic';
     },
 
@@ -5110,15 +5118,15 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
         c.fillStyle = dots[di][2]; c.fill();
       }
       c.restore();
-      /* 文案：当前皮肤名 */
+      /* 文案：上当前皮肤名 / 下"换风格"提示，垂直居中两行排布 */
       c.fillStyle = '#6a4520';
       c.font = '800 14px "PingFang SC",-apple-system,system-ui,sans-serif';
       c.textAlign = 'left'; c.textBaseline = 'middle';
-      c.fillText(this.skin === 'smiley' ? '笑脸' : this.skin === 'cut' ? '剖面' : '表情', b.x + 42, cy + 1);
+      c.fillText(this.skin === 'smiley' ? '笑脸' : this.skin === 'cut' ? '剖面' : '表情', b.x + 40, cy - 8);
       /* 轻微呼吸提示 */
       c.globalAlpha = 0.5 + Math.sin(Date.now() / 400) * 0.25;
       c.font = '700 9px "PingFang SC",-apple-system,system-ui,sans-serif';
-      c.fillText('换风格', b.x + 42, cy + 12);
+      c.fillText('换风格 ›', b.x + 40, cy + 11);
       c.globalAlpha = 1;
       c.textBaseline = 'alphabetic';
     },
@@ -5252,22 +5260,23 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
       /* ---- 顶部 UI（正版样式，紧凑单行） ---- */
       this.woodBtn(c, this.btnBack(), 'back');
       this.woodBtn(c, this.btnRe(), 're');
-      /* 小西瓜计数 + 得分（顶部居中，不挡悬挂水果） */
+      /* 小西瓜计数 + 得分（顶部居中，不挡悬挂水果；让出状态栏） */
+      var sy = 44 + (P.sbTop || 0);
       var bx = W / 2 - 86;
-      this.wholeMelon(c, bx, 44, 14);
+      this.wholeMelon(c, bx, sy, 14);
       c.textAlign = 'left';
       c.textBaseline = 'middle';
       c.font = '700 17px -apple-system,system-ui,sans-serif';
       c.lineWidth = 3;
       c.strokeStyle = 'rgba(255,252,240,.7)';
       var cntText = ':' + (this.wmCount || 0);
-      c.strokeText(cntText, bx + 19, 45);
+      c.strokeText(cntText, bx + 19, sy + 1);
       c.fillStyle = BLUE;
-      c.fillText(cntText, bx + 19, 45);
+      c.fillText(cntText, bx + 19, sy + 1);
       var st = '得分:' + this.score;
       c.font = '800 18px -apple-system,system-ui,sans-serif';
-      c.strokeText(st, bx + 46, 45);
-      c.fillText(st, bx + 46, 45);
+      c.strokeText(st, bx + 46, sy + 1);
+      c.fillText(st, bx + 46, sy + 1);
       c.textBaseline = 'alphabetic';
 
       /* 得分飘字 */
