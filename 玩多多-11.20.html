@@ -1036,13 +1036,10 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
   };
 
   P.haptic = function (v) {
-    /* APK 内优先走原生震动桥（WebView 的 navigator.vibrate 不可靠） */
-    try {
-      if (window.AndroidUI && AndroidUI.vibrate) {
-        AndroidUI.vibrate(typeof v === 'number' ? String(Math.round(v)) : (v && v.join ? v.join(',') : String(v)));
-        return;
-      }
-    } catch (e) { }
+    /* 双通道震动：原生桥 + WebView 各触发一次（都打到系统同一个 Vibrator，
+       同节奏只会震一次；桥异常时 WebView 兜底，宁重勿漏） */
+    var s = typeof v === 'number' ? String(Math.round(v)) : (v && v.join ? v.join(',') : String(v));
+    try { if (window.AndroidUI && AndroidUI.vibrate) AndroidUI.vibrate(s); } catch (e) { }
     if (navigator.vibrate) { try { navigator.vibrate(v); } catch (e) { } }
   };
 
@@ -1379,9 +1376,21 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
     playEl.classList.toggle('nohud', show === false);
   };
 
+  /* 退出游戏二次确认：2.2 秒内再按一次才真正返回，防止误触 */
+  var lastBackTap = 0;
   P.back = function (force) {
     if (folderEl && folderEl.classList.contains('show')) { closeFolderSheet(); return; }
     if (switching) return;
+    if (!force && P.cur) {
+      var now = Date.now();
+      if (now - lastBackTap > 2200) {
+        lastBackTap = now;
+        P.haptic(8);
+        P.toast('再按一次返回 · 防止误触');
+        return;
+      }
+      lastBackTap = 0;
+    }
     switching = true;
     autoSave();
     P.running = false;
@@ -1518,6 +1527,7 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
   var DEV = [
     { ic: '☁️', t: '云同步', v: '邮箱登录 · 存档与便签备份', act: 'cloud', cp: '打开', needCloud: true },
     { ic: '🎛️', t: '游戏排序及显示设置', v: '排序小游戏合集 · 可隐藏不玩的游戏', act: 'sort', cp: '打开' },
+    { ic: '📳', t: '震动测试', v: '点一下震两次 · 不震就是系统关了触感', act: 'vibtest', cp: '测试' },
     { ic: '📇', t: '联系方式', v: 'GitHub · 邮箱', act: 'contact', cp: '打开' },
     { ic: '🧧', t: '支付宝打赏', v: '点开扫码 · 红包随意', img: 'img/alipay.jpg', hot: true, cp: '打赏' }
   ];
@@ -1565,6 +1575,17 @@ body:has(#folderSheet.show) #home .card{backdrop-filter:none!important;-webkit-b
           if (act === 'cloud') {
             P.haptic(8);
             if (P.cloud) P.cloud.open();
+            return;
+          }
+          if (act === 'vibtest') {
+            /* 震动链路自测：原生桥 + WebView 双通道各来一次强震动 */
+            var hasBridge = !!(window.AndroidUI && AndroidUI.vibrate);
+            var hasWeb = !!navigator.vibrate;
+            try {
+              if (hasBridge) AndroidUI.vibrate('40,80,40,80,120');
+              if (hasWeb) navigator.vibrate([40, 80, 40, 80, 120]);
+            } catch (e) { }
+            P.toast('已发震动指令 [' + (hasBridge ? '原生桥√' : '原生桥×') + (hasWeb ? '·浏览器√' : '·浏览器×') + '] 仍不震=系统触感开关被关');
             return;
           }
           var go = row.getAttribute('data-go');
